@@ -57,7 +57,7 @@ def plain_prompt(body: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", body).strip()
 
 
-def first_image(path: Path, body: str, index: int) -> str | None:
+def first_image(path: Path, body: str, index: int, meta: dict[str, str]) -> str | None:
     wiki = re.search(r"!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]", body)
     if wiki:
         name = wiki.group(1).strip()
@@ -67,7 +67,8 @@ def first_image(path: Path, body: str, index: int) -> str | None:
             target = ASSETS / f"prompt-{index:03d}-{slugify(source.stem)}{source.suffix.lower()}"
             shutil.copy2(source, target)
             return str(target.relative_to(SITE))
-    remote = re.search(r"https://pbs\.twimg\.com/media/[^\s\)\]]+", body)
+    configured = meta.get("thumbnail", "") or meta.get("image", "")
+    remote = re.search(r"https://pbs\.twimg\.com/(?:media|amplify_video_thumb)/[^\s\)\]]+", configured or body)
     if remote:
         url = remote.group(0).rstrip('"\'.,')
         target = ASSETS / f"prompt-{index:03d}-remote.jpg"
@@ -94,7 +95,7 @@ def build_prompts() -> list[dict]:
             "id": f"prompt-{index}",
             "title": title,
             "category": category,
-            "image": first_image(path, body, index),
+            "image": first_image(path, body, index, meta),
             "content": content,
             "source": meta.get("source", ""),
             "path": str(path.relative_to(ROOT)),
