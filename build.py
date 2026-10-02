@@ -105,7 +105,11 @@ def build_prompts() -> list[dict]:
 
 def build_skills() -> list[dict]:
     items = []
-    for index, path in enumerate(sorted(SKILL_ROOT.glob("*/SKILL.md")), 1):
+    paths = sorted(
+        SKILL_ROOT.glob("*/SKILL.md"),
+        key=lambda path: (-path.stat().st_mtime_ns, path.parent.name.casefold()),
+    )
+    for index, path in enumerate(paths, 1):
         raw = path.read_text(encoding="utf-8", errors="replace")
         meta, body = frontmatter(raw)
         title = meta.get("name") or path.parent.name
