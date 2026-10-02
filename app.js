@@ -93,4 +93,4 @@ search.addEventListener('input', event => { state.query = event.target.value; re
 document.querySelector('#dialogClose').addEventListener('click', () => dialog.close());
 dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
 
-fetch('data.json').then(response => response.json()).then(data => { state.data = data; render(); });
+fetch(`data.json?v=${Date.now()}`, { cache: 'no-store' }).then(response => response.json()).then(data => { state.data = data; render(); });
