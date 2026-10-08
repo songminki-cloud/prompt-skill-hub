@@ -57,16 +57,27 @@ def plain_prompt(body: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", body).strip()
 
 
-def first_image(path: Path, body: str, index: int, meta: dict[str, str]) -> str | None:
-    wiki = re.search(r"!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]", body)
-    if wiki:
-        name = wiki.group(1).strip()
+def local_images(path: Path, body: str, index: int) -> list[str]:
+    references = [match.group(1).strip() for match in re.finditer(r"!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]", body)]
+    references += [match.group(1).strip() for match in re.finditer(r"!\[[^\]]*\]\(([^)]+)\)", body)]
+    images: list[str] = []
+    for position, name in enumerate(references, 1):
+        if re.match(r"https?://", name):
+            continue
         candidates = [path.parent / name, ATTACHMENTS / name, PROMPT_ROOT / "Image Prompts" / name]
-        source = next((p for p in candidates if p.exists()), None)
-        if source:
-            target = ASSETS / f"prompt-{index:03d}-{slugify(source.stem)}{source.suffix.lower()}"
-            shutil.copy2(source, target)
-            return str(target.relative_to(SITE))
+        source = next((candidate.resolve() for candidate in candidates if candidate.exists() and candidate.is_file()), None)
+        if not source:
+            continue
+        position_label = f"{position:02d}-" if len(references) > 1 else ""
+        target = ASSETS / f"prompt-{index:03d}-{position_label}{slugify(source.stem)}{source.suffix.lower()}"
+        shutil.copy2(source, target)
+        images.append(str(target.relative_to(SITE)))
+    return images
+
+
+def first_image(path: Path, body: str, index: int, meta: dict[str, str], images: list[str]) -> str | None:
+    if images:
+        return images[0]
     configured = meta.get("thumbnail", "") or meta.get("image", "")
     remote = re.search(r"https://pbs\.twimg\.com/(?:media|amplify_video_thumb)/[^\s\)\]]+", configured or body)
     if remote:
@@ -91,11 +102,13 @@ def build_prompts() -> list[dict]:
         title = title_for(path, meta, body)
         content = plain_prompt(body)
         category = "Image" if ("image" in str(path).lower() or "이미지" in raw[:500] or "poster" in raw[:500].lower()) else "Prompt"
+        images = local_images(path, body, index)
         items.append({
             "id": f"prompt-{index}",
             "title": title,
             "category": category,
-            "image": first_image(path, body, index, meta),
+            "image": first_image(path, body, index, meta, images),
+            "images": images,
             "content": content,
             "source": meta.get("source", ""),
             "path": str(path.relative_to(ROOT)),

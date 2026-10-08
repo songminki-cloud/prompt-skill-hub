@@ -31,8 +31,10 @@ function copyText(text) {
 
 function showDetail(item, type) {
   const link = item.source || item.link;
+  const images = item.images || (item.image ? [item.image] : []);
   dialogBody.innerHTML = `<article class="detail">
     <h2>${escapeHtml(item.title)}</h2>
+    ${type === 'prompt' && images.length ? `<div class="detail-gallery">${images.map((src, index) => `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.title)} ${index + 1}" loading="lazy">`).join('')}</div>` : ''}
     ${type === 'skill' && item.description ? `<p>${escapeHtml(item.description)}</p>` : ''}
     <pre>${escapeHtml(item.content)}</pre>
     <div class="detail-actions">
